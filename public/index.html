@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>New Farmer Navigator — Mississippi Conservation Services</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --ms-green: #1a5c2a;
+  --ms-green-mid: #2d7a3f;
+  --ms-green-light: #4a9e5c;
+  --ms-green-pale: #e8f5eb;
+  --ms-gold: #c8921a;
+  --ms-gold-light: #f5e6c0;
+  --ms-gold-pale: #fdf6e3;
+  --white: #ffffff;
+  --bg: #f6faf7;
+  --text: #1a1a1a;
+  --muted: #5a6b5c;
+  --border: #d0e4d4;
+  --shadow: 0 2px 12px rgba(0,0,0,0.08);
+  --radius: 12px;
+}
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); min-height: 100vh; display: flex; flex-direction: column; }
+
+/* HEADER */
+.header { background: var(--ms-green); color: white; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; height: 66px; box-shadow: 0 2px 8px rgba(0,0,0,0.25); flex-shrink: 0; }
+.header-left { display: flex; align-items: center; gap: 12px; }
+.logo { width: 42px; height: 42px; background: var(--ms-gold); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+.header-title { font-size: 17px; font-weight: 700; }
+.header-sub { font-size: 11px; opacity: 0.7; margin-top: 2px; }
+.header-right { display: flex; align-items: center; gap: 8px; }
+.mode-btn { padding: 7px 14px; border-radius: 20px; border: 2px solid rgba(255,255,255,0.3); background: transparent; color: white; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.mode-btn.active { background: var(--ms-gold); border-color: var(--ms-gold); color: #1a1a1a; }
+.mode-btn:hover:not(.active) { background: rgba(255,255,255,0.15); }
+
+/* LAYOUT */
+.main { display: flex; flex: 1; overflow: hidden; height: calc(100vh - 66px); }
+
+/* SIDEBAR */
+.sidebar { width: 250px; background: var(--white); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; }
+.sidebar-section { padding: 14px; border-bottom: 1px solid var(--border); }
+.sidebar-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 10px; }
+
+.phase-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.phase-item:last-child { border-bottom: none; }
+.phase-num { width: 24px; height: 24px; border-radius: 50%; background: var(--border); color: var(--muted); font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+.phase-num.active { background: var(--ms-green); color: white; }
+.phase-num.done { background: var(--ms-gold); color: #1a1a1a; }
+.phase-title { font-size: 12px; font-weight: 600; color: var(--text); }
+.phase-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+.quick-btn { display: block; width: 100%; text-align: left; padding: 7px 9px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); cursor: pointer; font-size: 12px; color: var(--text); margin-bottom: 5px; transition: all 0.15s; line-height: 1.4; }
+.quick-btn:hover { border-color: var(--ms-green-light); background: var(--ms-green-pale); color: var(--ms-green); }
+
+.county-select { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text); background: var(--bg); }
+.county-select:focus { outline: none; border-color: var(--ms-green-light); }
+
+.nrcs-card { background: var(--ms-green-pale); border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-top: 8px; font-size: 12px; color: var(--ms-green); display: none; }
+.nrcs-card.visible { display: block; }
+.nrcs-card strong { display: block; margin-bottom: 4px; font-size: 13px; }
+
+/* CHAT */
+.chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+.messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+
+/* WELCOME */
+.welcome-card { background: linear-gradient(135deg, var(--ms-green) 0%, var(--ms-green-mid) 60%, #1a4d2a 100%); color: white; border-radius: var(--radius); padding: 24px; }
+.wc-badge { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; opacity: 0.7; margin-bottom: 8px; }
+.wc-title { font-size: 22px; font-weight: 700; margin-bottom: 10px; }
+.wc-desc { font-size: 14px; opacity: 0.88; line-height: 1.65; }
+.wc-actions { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+.wc-btn { padding: 10px 20px; border-radius: 25px; font-size: 13px; font-weight: 700; cursor: pointer; border: none; transition: all 0.2s; }
+.wc-btn-primary { background: var(--ms-gold); color: #1a1a1a; }
+.wc-btn-primary:hover { background: #e0a820; }
+.wc-btn-secondary { background: rgba(255,255,255,0.15); color: white; border: 2px solid rgba(255,255,255,0.35); }
+.wc-btn-secondary:hover { background: rgba(255,255,255,0.25); }
+
+/* MESSAGES */
+.msg { display: flex; gap: 10px; }
+.msg.user { flex-direction: row-reverse; }
+.msg-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; margin-top: 2px; }
+.bot-avatar { background: var(--ms-green); color: white; }
+.user-avatar { background: var(--ms-gold); color: #1a1a1a; }
+.msg-bubble { max-width: calc(100% - 50px); padding: 12px 16px; border-radius: 16px; font-size: 14px; line-height: 1.7; }
+.bot-bubble { background: var(--white); border: 1px solid var(--border); border-top-left-radius: 4px; box-shadow: var(--shadow); color: var(--text); }
+.user-bubble { background: var(--ms-green); color: white; border-top-right-radius: 4px; }
+.msg-bubble b { font-weight: 600; }
+.msg-bubble ul { padding-left: 18px; margin: 6px 0; }
+.msg-bubble li { margin-bottom: 4px; }
+.msg-bubble h4 { font-size: 14px; font-weight: 700; margin: 10px 0 5px; color: var(--ms-green); }
+
+/* MODE BANNER */
+.mode-banner { padding: 8px 16px; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.mode-banner.enrollment { background: var(--ms-gold-pale); color: var(--ms-gold); border-bottom: 1px solid var(--ms-gold-light); }
+.mode-banner.info { background: var(--ms-green-pale); color: var(--ms-green); border-bottom: 1px solid var(--border); }
+
+/* PHASE PROGRESS BAR */
+.phase-bar { padding: 8px 16px; background: var(--white); border-bottom: 1px solid var(--border); display: flex; gap: 4px; flex-shrink: 0; }
+.phase-pip { flex: 1; height: 4px; border-radius: 4px; background: var(--border); transition: background 0.3s; }
+.phase-pip.done { background: var(--ms-gold); }
+.phase-pip.active { background: var(--ms-green); }
+
+/* PDF CARD */
+.pdf-card { background: var(--ms-gold-pale); border: 2px solid var(--ms-gold-light); border-radius: var(--radius); padding: 16px; margin: 4px 0; }
+.pdf-card h3 { font-size: 15px; color: var(--ms-green); margin-bottom: 8px; }
+.pdf-card p { font-size: 13px; color: var(--muted); margin-bottom: 12px; line-height: 1.5; }
+.pdf-download-btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; background: var(--ms-green); color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+.pdf-download-btn:hover { background: var(--ms-green-mid); }
+#qr-container { margin-top: 12px; }
+
+/* NRCS REFERRAL CARD */
+.nrcs-referral { background: var(--ms-green-pale); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin: 4px 0; }
+.nrcs-referral h4 { color: var(--ms-green); font-size: 14px; margin-bottom: 8px; }
+.nrcs-referral p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+.nrcs-referral .nrcs-phone { font-size: 18px; font-weight: 700; color: var(--ms-green); margin: 8px 0; }
+
+/* TYPING */
+.typing-indicator { display: flex; align-items: center; gap: 5px; padding: 12px 16px; background: var(--white); border: 1px solid var(--border); border-radius: 16px; border-top-left-radius: 4px; width: fit-content; box-shadow: var(--shadow); }
+.typing-dot { width: 7px; height: 7px; background: var(--ms-green-light); border-radius: 50%; animation: bounce 1.2s infinite; }
+.typing-dot:nth-child(2) { animation-delay: .2s; }
+.typing-dot:nth-child(3) { animation-delay: .4s; }
+@keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+
+/* INPUT */
+.input-area { padding: 14px 20px; background: var(--white); border-top: 1px solid var(--border); flex-shrink: 0; }
+.input-row { display: flex; gap: 10px; align-items: flex-end; }
+.input-wrap { flex: 1; background: var(--bg); border: 1.5px solid var(--border); border-radius: 12px; padding: 10px 14px; transition: border-color 0.2s; }
+.input-wrap:focus-within { border-color: var(--ms-green-light); }
+#user-input { width: 100%; border: none; background: none; outline: none; font-size: 14px; color: var(--text); resize: none; max-height: 120px; min-height: 22px; font-family: inherit; line-height: 1.5; }
+#user-input::placeholder { color: #aaa; }
+.send-btn { width: 40px; height: 40px; border-radius: 10px; background: var(--ms-green); border: none; cursor: pointer; color: white; font-size: 17px; display: flex; align-items: center; justify-content: center; transition: background 0.15s; flex-shrink: 0; }
+.send-btn:hover { background: var(--ms-green-mid); }
+.send-btn:disabled { background: #ccc; cursor: not-allowed; }
+.input-footer { font-size: 11px; color: var(--muted); margin-top: 8px; text-align: center; }
+
+@media(max-width:600px) { .sidebar { display:none; } .messages { padding: 12px; } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo">🌱</div>
+    <div>
+      <div class="header-title">New Farmer Navigator</div>
+      <div class="header-sub">Mississippi Conservation Services · RCPP New Farmers Initiative</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <button class="mode-btn active" id="btn-enrollment" onclick="setMode('enrollment')">🗂 Start Enrollment</button>
+    <button class="mode-btn" id="btn-info" onclick="setMode('info')">💬 Ask a Question</button>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+
+    <div class="sidebar-section" id="phase-sidebar">
+      <div class="sidebar-label">Enrollment Phases</div>
+      <div class="phase-item">
+        <div class="phase-num active" id="p1">1</div>
+        <div><div class="phase-title">Initial Intake</div><div class="phase-sub">Your farm information</div></div>
+      </div>
+      <div class="phase-item">
+        <div class="phase-num" id="p2">2</div>
+        <div><div class="phase-title">FSA Eligibility</div><div class="phase-sub">Farm Service Agency</div></div>
+      </div>
+      <div class="phase-item">
+        <div class="phase-num" id="p3">3</div>
+        <div><div class="phase-title">NRCS Eligibility</div><div class="phase-sub">Land & producer review</div></div>
+      </div>
+      <div class="phase-item">
+        <div class="phase-num" id="p4">4</div>
+        <div><div class="phase-title">EQIP Application</div><div class="phase-sub">Application walkthrough</div></div>
+      </div>
+      <div class="phase-item">
+        <div class="phase-num" id="p5">5</div>
+        <div><div class="phase-title">CPA-1200 Form</div><div class="phase-sub">Conservation application</div></div>
+      </div>
+      <div class="phase-item">
+        <div class="phase-num" id="p6">6</div>
+        <div><div class="phase-title">Conservation Practices</div><div class="phase-sub">Practices for your farm</div></div>
+      </div>
+    </div>
+
+    <div class="sidebar-section" id="info-sidebar" style="display:none">
+      <div class="sidebar-label">Quick Questions</div>
+      <button class="quick-btn" onclick="ask('What is EQIP and how do I apply?')">What is EQIP?</button>
+      <button class="quick-btn" onclick="ask('What is RCPP and how is it different from EQIP?')">What is RCPP?</button>
+      <button class="quick-btn" onclick="ask('What is an FSA farm number and do I need one?')">What is an FSA farm number?</button>
+      <button class="quick-btn" onclick="ask('What conservation practices are available in Mississippi?')">MS conservation practices</button>
+      <button class="quick-btn" onclick="ask('What is Highly Erodible Land compliance?')">HEL compliance basics</button>
+      <button class="quick-btn" onclick="ask('How does conservation planning work with NRCS?')">Conservation planning</button>
+      <button class="quick-btn" onclick="ask('What is cover crops and how do they help my soil?')">Cover crops explained</button>
+      <button class="quick-btn" onclick="ask('How does Prescribed Grazing work for livestock?')">Prescribed Grazing</button>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Find Your NRCS Office</div>
+      <select class="county-select" id="county-select" onchange="lookupCounty(this.value)">
+        <option value="">Select your county...</option>
+      </select>
+      <div class="nrcs-card" id="nrcs-card">
+        <strong id="nrcs-county"></strong>
+        <span id="nrcs-address"></span><br>
+        📞 <span id="nrcs-phone"></span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CHAT -->
+  <div class="chat-area">
+    <div class="mode-banner enrollment" id="mode-banner">
+      🗂 <span id="mode-label">Enrollment Mode — I will guide you through each phase step by step</span>
+    </div>
+    <div class="phase-bar" id="phase-bar">
+      <div class="phase-pip active" id="pip1"></div>
+      <div class="phase-pip" id="pip2"></div>
+      <div class="phase-pip" id="pip3"></div>
+      <div class="phase-pip" id="pip4"></div>
+      <div class="phase-pip" id="pip5"></div>
+      <div class="phase-pip" id="pip6"></div>
+    </div>
+    <div class="messages" id="messages"></div>
+    <div class="input-area">
+      <div class="input-row">
+        <div class="input-wrap">
+          <textarea id="user-input" rows="1"
+            placeholder="Type your message here..."
+            onkeydown="handleKey(event)"
+            oninput="autoResize(this)"></textarea>
+        </div>
+        <button class="send-btn" id="send-btn" onclick="sendMessage()">➤</button>
+      </div>
+      <div class="input-footer">New Farmer Navigator · Mississippi Conservation Services · RCPP Initiative · Always confirm details with your local NRCS office</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ── State ── */
+let currentMode = 'enrollment';
+let enrollmentHistory = [];
+let infoHistory = [];
+let isLoading = false;
+let currentPhase = 1;
+let producerData = {};
+let pdfGenerated = false;
+
+/* ── County Dropdown ── */
+const MS_COUNTIES = ["Adams","Alcorn","Amite","Attala","Benton","Bolivar","Calhoun","Carroll","Chickasaw","Choctaw","Claiborne","Clarke","Clay","Coahoma","Copiah","Covington","DeSoto","Forrest","Franklin","George","Greene","Grenada","Hancock","Harrison","Hinds","Holmes","Humphreys","Issaquena","Itawamba","Jackson","Jasper","Jefferson","Jefferson Davis","Jones","Kemper","Lafayette","Lamar","Lauderdale","Lawrence","Leake","Lee","Leflore","Lincoln","Lowndes","Madison","Marion","Marshall","Monroe","Montgomery","Neshoba","Newton","Noxubee","Oktibbeha","Panola","Pearl River","Perry","Pike","Pontotoc","Prentiss","Quitman","Rankin","Scott","Sharkey","Simpson","Smith","Stone","Sunflower","Tallahatchie","Tate","Tippah","Tishomingo","Tunica","Union","Walthall","Warren","Washington","Wayne","Webster","Wilkinson","Winston","Yalobusha","Yazoo"];
+
+const sel = document.getElementById('county-select');
+MS_COUNTIES.forEach(c => {
+  const opt = document.createElement('option');
+  opt.value = c; opt.textContent = c + ' County';
+  sel.appendChild(opt);
+});
+
+async function lookupCounty(county) {
+  if (!county) return;
+  try {
+    const r = await fetch('/api/nrcs-office/' + encodeURIComponent(county));
+    const d = await r.json();
+    document.getElementById('nrcs-county').textContent = d.county + ' County NRCS Office';
+    document.getElementById('nrcs-address').textContent = d.address;
+    document.getElementById('nrcs-phone').textContent = d.phone;
+    document.getElementById('nrcs-card').classList.add('visible');
+  } catch(e) { console.error('County lookup error:', e); }
+}
+
+/* ── Mode switching ── */
+function setMode(mode) {
+  currentMode = mode;
+  document.getElementById('btn-enrollment').className = 'mode-btn' + (mode === 'enrollment' ? ' active' : '');
+  document.getElementById('btn-info').className = 'mode-btn' + (mode === 'info' ? ' active' : '');
+
+  const banner = document.getElementById('mode-banner');
+  const phaseBar = document.getElementById('phase-bar');
+  const phaseSidebar = document.getElementById('phase-sidebar');
+  const infoSidebar = document.getElementById('info-sidebar');
+  const modeLabel = document.getElementById('mode-label');
+
+  if (mode === 'enrollment') {
+    banner.className = 'mode-banner enrollment';
+    modeLabel.textContent = 'Enrollment Mode — I will guide you through each phase step by step';
+    phaseBar.style.display = 'flex';
+    phaseSidebar.style.display = 'block';
+    infoSidebar.style.display = 'none';
+    document.getElementById('user-input').placeholder = 'Type your answer here...';
+  } else {
+    banner.className = 'mode-banner info';
+    modeLabel.textContent = 'Information Mode — Ask me anything about EQIP, RCPP, and NRCS Mississippi programs';
+    phaseBar.style.display = 'none';
+    phaseSidebar.style.display = 'none';
+    infoSidebar.style.display = 'block';
+    document.getElementById('user-input').placeholder = 'Ask about EQIP, RCPP, conservation practices...';
+  }
+
+  // Show appropriate history or welcome
+  renderMessages();
+}
+
+/* ── Message store per mode ── */
+let enrollmentMessages = []; // rendered messages
+let infoMessages = [];
+
+function renderMessages() {
+  const container = document.getElementById('messages');
+  container.innerHTML = '';
+
+  if (currentMode === 'enrollment') {
+    if (enrollmentMessages.length === 0) {
+      showEnrollmentWelcome();
+    } else {
+      enrollmentMessages.forEach(m => container.appendChild(m));
+    }
+  } else {
+    if (infoMessages.length === 0) {
+      showInfoWelcome();
+    } else {
+      infoMessages.forEach(m => container.appendChild(m));
+    }
+  }
+  container.scrollTop = container.scrollHeight;
+}
+
+/* ── Welcome screens ── */
+function showEnrollmentWelcome() {
+  const container = document.getElementById('messages');
+  const card = document.createElement('div');
+  card.className = 'welcome-card';
+  card.innerHTML = `
+    <div class="wc-badge">Mississippi Conservation Services · RCPP New Farmers Initiative</div>
+    <div class="wc-title">🌱 Welcome to the New Farmer Navigator</div>
+    <div class="wc-desc">I am here to walk you through the USDA enrollment process — one step at a time. Whether you are brand new to farming or just new to USDA programs, you are in the right place. We will go through 6 simple phases together and I will prepare a personalized PDF summary you can bring to your NRCS appointment.</div>
+    <div class="wc-actions">
+      <button class="wc-btn wc-btn-primary" onclick="startEnrollment()">🚀 Start My Enrollment</button>
+      <button class="wc-btn wc-btn-secondary" onclick="setMode('info')">💬 Ask a Question First</button>
+    </div>
+  `;
+  container.appendChild(card);
+}
+
+function showInfoWelcome() {
+  const container = document.getElementById('messages');
+  const card = document.createElement('div');
+  card.className = 'welcome-card';
+  card.innerHTML = `
+    <div class="wc-badge">Mississippi Conservation Services · Information Assistant</div>
+    <div class="wc-title">💬 Ask Me Anything</div>
+    <div class="wc-desc">I can answer your questions about EQIP, RCPP, NRCS conservation practices in Mississippi, FSA farm numbers, and how to get started with USDA programs. No question is too basic — I am here to help.</div>
+    <div class="wc-actions">
+      <button class="wc-btn wc-btn-primary" onclick="ask('What is EQIP and how do I apply?')">What is EQIP?</button>
+      <button class="wc-btn wc-btn-primary" onclick="ask('What is RCPP?')">What is RCPP?</button>
+      <button class="wc-btn wc-btn-secondary" onclick="setMode('enrollment')">🗂 Start Enrollment Instead</button>
+    </div>
+  `;
+  container.appendChild(card);
+}
+
+function startEnrollment() {
+  const greeting = "Hello! I am ready to start my enrollment for the USDA conservation program.";
+  document.getElementById('user-input').value = greeting;
+  sendMessage();
+}
+
+/* ── Phase tracking ── */
+function detectPhase(text) {
+  if (/phase 2|FSA|farm number|farm record/i.test(text)) updatePhase(2);
+  if (/phase 3|NRCS eligibility|land eligibility/i.test(text)) updatePhase(3);
+  if (/phase 4|EQIP application|application walkthrough/i.test(text)) updatePhase(4);
+  if (/phase 5|CPA-1200|conservation program application/i.test(text)) updatePhase(5);
+  if (/phase 6|conservation practice|cover crop|nutrient management/i.test(text)) updatePhase(6);
+  if (/GENERATE_PDF/i.test(text)) generatePDF();
+  // Extract producer data
+  extractProducerData(text);
+}
+
+function updatePhase(phase) {
+  if (phase <= currentPhase) return;
+  currentPhase = phase;
+  for (let i = 1; i <= 6; i++) {
+    const pip = document.getElementById('pip' + i);
+    const pnum = document.getElementById('p' + i);
+    if (i < phase) {
+      pip.className = 'phase-pip done';
+      if (pnum) pnum.className = 'phase-num done';
+    } else if (i === phase) {
+      pip.className = 'phase-pip active';
+      if (pnum) pnum.className = 'phase-num active';
+    } else {
+      pip.className = 'phase-pip';
+      if (pnum) pnum.className = 'phase-num';
+    }
+  }
+}
+
+function extractProducerData(text) {
+  // Try to extract key data points from conversation for PDF
+  const nameMatch = text.match(/name[:\s]+([A-Z][a-z]+ [A-Z][a-z]+)/);
+  if (nameMatch) producerData.name = nameMatch[1];
+  const countyMatch = text.match(/([A-Z][a-z]+)\s+[Cc]ounty/);
+  if (countyMatch) producerData.county = countyMatch[1];
+}
+
+/* ── PDF Generation ── */
+async function generatePDF() {
+  if (pdfGenerated) return;
+  pdfGenerated = true;
+
+  // Get NRCS office for county
+  let nrcsOffice = { phone: "(601) 965-5631", address: "Contact Mississippi State NRCS Office" };
+  if (producerData.county) {
+    try {
+      const r = await fetch('/api/nrcs-office/' + encodeURIComponent(producerData.county));
+      nrcsOffice = await r.json();
+    } catch(e) {}
+  }
+
+  // Build PDF card in chat
+  const container = document.getElementById('messages');
+  const card = document.createElement('div');
+  card.className = 'pdf-card';
+
+  const refNum = 'NFN-' + Date.now().toString().slice(-8);
+  const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  card.innerHTML = `
+    <h3>📄 Your Enrollment Summary is Ready</h3>
+    <p>Your personalized RCPP enrollment summary has been prepared. Download it, print it, and bring it to your NRCS appointment. Reference #: <strong>${refNum}</strong></p>
+    <button class="pdf-download-btn" onclick="downloadPDF('${refNum}', '${dateStr}', ${JSON.stringify(JSON.stringify(nrcsOffice))})">
+      ⬇️ Download My PDF Summary
+    </button>
+    <div id="qr-container"></div>
+  `;
+
+  const msgDiv = document.createElement('div');
+  msgDiv.className = 'msg bot';
+  const av = document.createElement('div');
+  av.className = 'msg-avatar bot-avatar';
+  av.textContent = '🌱';
+  msgDiv.appendChild(av);
+  msgDiv.appendChild(card);
+  container.appendChild(msgDiv);
+
+  // Add NRCS referral card
+  const refCard = document.createElement('div');
+  refCard.className = 'msg bot';
+  const av2 = document.createElement('div');
+  av2.className = 'msg-avatar bot-avatar';
+  av2.textContent = '🌱';
+  const nrcsDiv = document.createElement('div');
+  nrcsDiv.className = 'nrcs-referral';
+  nrcsDiv.innerHTML = `
+    <h4>📍 Your Next Step — Call Your Local NRCS Office</h4>
+    <p><strong>${producerData.county ? producerData.county + ' County' : 'Your County'} NRCS Service Center</strong><br>
+    ${nrcsOffice.address}</p>
+    <div class="nrcs-phone">${nrcsOffice.phone}</div>
+    <p>Bring your PDF summary to your appointment. A certified Conservation Planner will review your information and guide you through the next steps.</p>
+  `;
+  refCard.appendChild(av2);
+  refCard.appendChild(nrcsDiv);
+  container.appendChild(refCard);
+
+  container.scrollTop = container.scrollHeight;
+
+  // Generate QR code
+  setTimeout(() => {
+    try {
+      new QRCode(document.getElementById('qr-container'), {
+        text: window.location.href,
+        width: 80, height: 80,
+        colorDark: "#1a5c2a", colorLight: "#ffffff"
+      });
+      const qrLabel = document.createElement('p');
+      qrLabel.style.cssText = 'font-size:11px;color:#5a6b5c;margin-top:4px;';
+      qrLabel.textContent = 'Scan to return to New Farmer Navigator';
+      document.getElementById('qr-container').appendChild(qrLabel);
+    } catch(e) { console.log('QR code error:', e); }
+  }, 500);
+
+  // Store PDF info for download
+  window._pdfData = { refNum, dateStr, nrcsOffice };
+}
+
+function downloadPDF(refNum, dateStr, nrcsOfficeStr) {
+  const nrcsOffice = JSON.parse(nrcsOfficeStr);
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  const green = [26, 92, 42];
+  const gold = [200, 146, 26];
+  const gray = [90, 107, 92];
+  const black = [26, 26, 26];
+
+  // Header background
+  doc.setFillColor(...green);
+  doc.rect(0, 0, 210, 38, 'F');
+
+  // Gold accent bar
+  doc.setFillColor(...gold);
+  doc.rect(0, 38, 210, 4, 'F');
+
+  // Header text
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(20);
+  doc.setFont('helvetica', 'bold');
+  doc.text('New Farmer Navigator', 15, 16);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Mississippi Conservation Services', 15, 24);
+  doc.text('RCPP New Farmers in Agriculture Initiative', 15, 31);
+
+  // Ref and date
+  doc.setFontSize(9);
+  doc.text('Ref: ' + refNum, 150, 20);
+  doc.text(dateStr, 150, 27);
+
+  // Title
+  doc.setTextColor(...black);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text('RCPP Enrollment Summary', 15, 55);
+
+  doc.setDrawColor(...gold);
+  doc.setLineWidth(0.5);
+  doc.line(15, 58, 195, 58);
+
+  let y = 68;
+
+  function section(title) {
+    doc.setFillColor(...green);
+    doc.rect(15, y - 5, 180, 8, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text(title, 18, y + 0.5);
+    doc.setTextColor(...black);
+    doc.setFont('helvetica', 'normal');
+    y += 12;
+  }
+
+  function field(label, value) {
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...gray);
+    doc.text(label, 18, y);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...black);
+    doc.setFontSize(10);
+    doc.text(value || 'To be confirmed at NRCS appointment', 18, y + 6);
+    y += 14;
+    if (y > 260) { doc.addPage(); y = 20; }
+  }
+
+  // Build PDF content from conversation history
+  const conversationText = enrollmentHistory
+    .filter(m => m.role === 'user')
+    .map(m => m.content)
+    .join(' ');
+
+  section('PHASE 1 — PRODUCER INFORMATION');
+  field('Producer Name', producerData.name || extractFromConversation('name', conversationText));
+  field('County', producerData.county ? producerData.county + ' County, Mississippi' : 'Mississippi');
+  field('Operation Type', extractFromConversation('operation', conversationText));
+  field('Total Acreage', extractFromConversation('acres', conversationText));
+  field('FSA Farm Number Status', extractFromConversation('FSA', conversationText));
+
+  y += 4;
+  section('PHASE 2 — FSA ELIGIBILITY STATUS');
+  field('FSA Farm Record', 'Producer to establish/confirm with local FSA office');
+  field('Documentation Required', 'Deed or land documents, Lease agreement (if renting), Photo ID, Property maps, Tax parcel information');
+
+  y += 4;
+  section('PHASE 3 — NRCS ELIGIBILITY');
+  field('Land Control', 'Confirmed during enrollment interview');
+  field('Resource Concerns Identified', extractFromConversation('resource', conversationText) || 'To be confirmed with NRCS conservationist');
+
+  y += 4;
+  section('PHASE 4 & 5 — APPLICATION SUMMARY');
+  field('Program', 'RCPP through EQIP — Regional Conservation Partnership Program');
+  field('Application Form', 'CPA-1200 Conservation Program Application');
+  field('Status', 'Ready to submit — bring this summary to your NRCS appointment');
+
+  y += 4;
+  section('NEXT STEP — YOUR NRCS SERVICE CENTER');
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...green);
+  doc.text((producerData.county ? producerData.county + ' County ' : '') + 'NRCS Service Center', 18, y);
+  y += 8;
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...black);
+  doc.text(nrcsOffice.address, 18, y);
+  y += 8;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(...green);
+  doc.text('📞 ' + nrcsOffice.phone, 18, y);
+  y += 14;
+
+  // Footer box
+  doc.setFillColor(...gold);
+  doc.rect(15, y, 180, 16, 'F');
+  doc.setTextColor(26, 26, 26);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.text('BRING THIS DOCUMENT TO YOUR NRCS APPOINTMENT', 105, y + 7, { align: 'center' });
+  doc.setFont('helvetica', 'normal');
+  doc.text('A certified Conservation Planner will review your information and guide your next steps.', 105, y + 13, { align: 'center' });
+
+  y += 24;
+  doc.setTextColor(...gray);
+  doc.setFontSize(8);
+  doc.text('Generated by New Farmer Navigator · Mississippi Conservation Services · ' + dateStr + ' · Ref: ' + refNum, 105, y, { align: 'center' });
+  doc.text('This document is for informational purposes. All program participation is subject to NRCS and FSA eligibility determination.', 105, y + 5, { align: 'center' });
+
+  doc.save('RCPP-Enrollment-Summary-' + refNum + '.pdf');
+}
+
+function extractFromConversation(type, text) {
+  return 'Discussed during enrollment session';
+}
+
+/* ── Chat helpers ── */
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+function ask(q) {
+  if (currentMode === 'enrollment') setMode('info');
+  document.getElementById('user-input').value = q;
+  sendMessage();
+}
+
+function addMessage(role, text) {
+  const container = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = 'msg ' + (role === 'user' ? 'user' : 'bot');
+  const av = document.createElement('div');
+  av.className = 'msg-avatar ' + (role === 'user' ? 'user-avatar' : 'bot-avatar');
+  av.textContent = role === 'user' ? '👤' : '🌱';
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble ' + (role === 'user' ? 'user-bubble' : 'bot-bubble');
+
+  const cleanText = text.replace(/\[GENERATE_PDF\]/g, '').trim();
+  bubble.innerHTML = formatText(cleanText);
+
+  div.appendChild(av);
+  div.appendChild(bubble);
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+
+  // Store message element in appropriate list
+  if (currentMode === 'enrollment') enrollmentMessages.push(div);
+  else infoMessages.push(div);
+
+  return div;
+}
+
+function formatText(text) {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+    .replace(/^#{1,3} (.+)$/gm, '<h4>$1</h4>')
+    .replace(/^[\*\-] (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>')
+    .replace(/\n\n/g, '<br><br>')
+    .replace(/\n/g, '<br>');
+}
+
+function showTyping() {
+  const container = document.getElementById('messages');
+  const d = document.createElement('div');
+  d.className = 'msg bot'; d.id = 'typing-msg';
+  const av = document.createElement('div');
+  av.className = 'msg-avatar bot-avatar'; av.textContent = '🌱';
+  const ind = document.createElement('div');
+  ind.className = 'typing-indicator';
+  ind.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+  d.appendChild(av); d.appendChild(ind);
+  container.appendChild(d);
+  container.scrollTop = container.scrollHeight;
+}
+function removeTyping() {
+  const el = document.getElementById('typing-msg');
+  if (el) el.remove();
+}
+
+async function sendMessage() {
+  const input = document.getElementById('user-input');
+  const text = input.value.trim();
+  if (!text || isLoading) return;
+
+  isLoading = true;
+  document.getElementById('send-btn').disabled = true;
+  input.value = ''; input.style.height = 'auto';
+
+  addMessage('user', text);
+
+  const history = currentMode === 'enrollment' ? enrollmentHistory : infoHistory;
+  history.push({ role: 'user', content: text });
+  showTyping();
+
+  try {
+    const endpoint = currentMode === 'enrollment' ? '/api/enrollment' : '/api/info';
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: history })
+    });
+
+    const data = await response.json();
+    removeTyping();
+
+    if (data && data.content && data.content[0] && data.content[0].text) {
+      const reply = data.content[0].text;
+      addMessage('assistant', reply);
+      history.push({ role: 'assistant', content: reply });
+      // Check for phase triggers and PDF trigger
+      if (currentMode === 'enrollment') {
+        detectPhase(reply);
+      }
+    } else if (data && data.error) {
+      addMessage('assistant', '⚠️ ' + data.error);
+    } else {
+      addMessage('assistant', '⚠️ No response received. Please try again.');
+    }
+  } catch (err) {
+    removeTyping();
+    addMessage('assistant', '⚠️ Connection error. Please try again.');
+  }
+
+  isLoading = false;
+  document.getElementById('send-btn').disabled = false;
+  input.focus();
+}
+
+/* ── Init ── */
+renderMessages();
+</script>
+</body>
+</html>
